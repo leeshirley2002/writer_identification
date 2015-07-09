@@ -1,54 +1,68 @@
-import os
-import random
-from feature_exaction import FeatureExaction
-
-def main():
-    ##get all file names
-    file_name_list = os.listdir('smooth_5_char_old\\smooth_5_char_old')
-    #remove numbers and daxie
-    file_name_list = [i for i in file_name_list if i.split('.')[0][-1].islower()] 
-    file_dict = {}
-    for i in file_name_list:
-        writer_id = i.split('_')[1][0:3]
-        char = i.split('.')[0][-1]
-        #convert A to A1
-        if char.isupper():
-            char = char+'1'
-        file_dict[i] = [writer_id,char]
-    ##char / wirterlist
-    char_list = list(set([file_dict[key][1] for key in file_dict]))
-    char_list.sort()
-    writer_list = list(set([file_dict[key][0] for key in file_dict]))
-    writer_list.sort()
-    
-    #outPut files
-    out_Files = {}
-    for char in char_list:
-        out_Files[char] = open("models\\"+char+'.desc','wb')
-    test_log = open("models\\"+"test_file_name",'wb')
-    train_log = open("models\\train_file_name",'wb')
-    for writer in writer_list:
-        for char in char_list:
-            temp_name = [name for name in file_dict if file_dict[name][0] == writer and file_dict[name][1] == char]
-            #get test set
-            test_set = random.sample(temp_name,int(len(temp_name)*0.1))
-            #if char == 'z':
-            #    print 1
-            for i in test_set:
-                test_log.write(i+'\n')
-            train_1 = [temp for temp in temp_name if temp not in test_set]
-            if len(train_1) < 80:
-                train_set = train_1
-            else:
-                train_set = random.sample(train_1,80)
-            for i in train_set:
-                train_log.write(i+'\n')
-            #write svm file
-            for name in train_set:
-                desc_line = str(writer_list.index(writer)+1)+' '
-                feat = FeatureExaction('smooth_5_char_old\\smooth_5_char_old\\'+name)
-                desc_line += feat.getLibsvmDescLine(write_name=False)
-                out_Files[char].write(desc_line+'\n')
-
-if __name__ == '__main__':
-    main()
+function writer_distance = freq_dis(y,writer_index)
+[row_a column_a]=size(y);
+kmeans_data=y(:,2:column_a);
+[IDX,C] = kmeans(kmeans_data,5)
+all_writer=[];
+for kk = 1:43
+    writer_k=[];
+    for i = 1:row_a
+        if y(i,1)==kk
+            writer_k=[writer_k; y(i,2:column_a)];
+        end
+    end
+    [X,Y]=size(writer_k);
+    writer1=writer_k(:,:);
+    [M,N]=size(writer1);
+    prob = [];
+    for k = 1:M
+        total=0;
+        temp=[];
+        for i = 1:5
+            distant = 0;
+            for j = 1:67
+            distant=distant+(writer1(k,j)-C(i,j))^2;
+            end
+            total = total +1/distant;
+            temp=[temp 1/distant];
+        end
+        prob= [prob;temp/total];
+    end
+    tf=sum(prob)/M;
+    all_writer=[all_writer;tf];
+end
+ idf=log(sum(sum(all_writer))./sum(all_writer));
+ 
+ 
+%%test%%
+writer_k=[];
+for i = 1:row_a
+    if y(i,1)==writer_index
+        writer_k=[writer_k; y(i,2:column_a)];
+    end
+end
+[X,Y]=size(writer_k);
+writer1=writer_k(1:X/8,:);
+[M,N]=size(writer1);
+prob = [];
+for k = 1:M
+    total=0;
+    temp=[];
+    for i = 1:5
+        distant = 0;
+        for j = 1:67
+            distant=distant+(writer1(k,j)-C(i,j))^2;
+        end
+        total = total +1/distant;
+        temp=[temp 1/distant];
+    end
+    prob= [prob;temp/total];
+end
+tf_test=sum(prob)/M;
+w_dist=zeros(43,5);
+for i = 1:43
+    for j =1:5
+        w_dist(i,j)=(all_writer(i,j)-tf_test(1,j))^2*idf(1,j)/(all_writer(i,j)+tf_test(1,j));
+    end
+end
+writer_distance=sum(w_dist,2);
+end
