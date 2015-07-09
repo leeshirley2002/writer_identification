@@ -1,7 +1,7 @@
 import os
 import numpy
 import random
-
+##kmeans in python
 def get_distance_matrix(file_name):
     s = open(file_name).readlines()
     data_matrix = []
